@@ -53,7 +53,6 @@ std::vector<int> getBassNotes() {
     while (ss >> note) {
         notes.push_back(note);
     }
-    
     if (notes.empty()) {
         notes = { 
             // Passt zu Teil 1
@@ -196,15 +195,22 @@ int main(int argc, char** argv) {
     // main globals
     int loop_max = 3;
     int sleep = 120;
-
+    bool file_used{};
+    std::string filename{};
+    std::string titlename{};
     // General Flag checks for flag
     for (int i = 0; i < argc; i++) {
         std::string c = argv[i];
+        if (c == "-f") {
+            filename = argv[i + 1];
+            titlename = argv[i + 2];
+            file_used = true;
+        }
         if (c == "-help") {
             std::cout << "This is My Personal Music Maker based on 2 integar arrays of MELODY and BASS!" << std::endl;
             std::cout << "Usage:" << std::endl;
             std::cout << "  run the program normally to type in your own custom Melody/Bass logic" << std::endl;
-            std::cout << "  pass argumentes <file> <title> to use file-written melodys: " << std::endl;
+            std::cout << "  pass argumentes -f <file> <title> to use file-written melodys: " << std::endl;
             std::cout << "     mymelody.txt " << std::endl;
             std::cout << "     [MY_TITLE]" << std::endl;
             std::cout << "     74 29 46 284 83 89 46 -34 -23 3" << std::endl;
@@ -213,6 +219,7 @@ int main(int argc, char** argv) {
             std::cout << "  Then u do \"./melody mymelodie.txt\" \"MY_TITLE\"" << std::endl;
             std::cout << "  For setting the loop the sound will be played. use the -l flag followed by an 4 byte integer" << std::endl;
             std::cout << "  For setting the sleep duration between sound-samples use the -s flag followed by an 4 byte integer" << std::endl;
+            std::cout << "  For using a own file with predefined melodies, use -f PATH TITLE" << std::endl;
             std::exit(0);
         }
         if (c == "-l") {
@@ -229,9 +236,9 @@ int main(int argc, char** argv) {
     std::string file;
     std::string openquote = "[";
     std::string closequote = "]";
-    if (argc > 2) {
-        std::ifstream samples(argv[1]);
-        std::string target = argv[2];
+    if (file_used) {
+        std::ifstream samples(filename);
+        std::string target = titlename;
         if (!samples.is_open()) {
             std::cout << "file not found!" << std::endl;
             return 1;
