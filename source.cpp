@@ -9,7 +9,8 @@
 #include <iterator>
 #include <stdexcept>
 #pragma comment(lib, "winmm.lib")
-
+int loop_max = 3;
+int sleep = 120;
 void sendMIDI(HMIDIOUT hMidi, BYTE status, BYTE data1, BYTE data2) {
     DWORD msg = status | (data1 << 8) | (data2 << 16);
     midiOutShortMsg(hMidi, msg);
@@ -69,10 +70,21 @@ enum EnumIdent {
     MELODY,
     BASS
 };
+enum FLAGS {
+    SLEEP,
+    LOOP
+};
 bool has{};
 std::vector<int> cache;
 bool hasNumber(const std::string& s) {
     return s.find_first_of("0123456789") != std::string::npos;
+}
+bool isNumeric(const std::string& s) {
+    size_t i = (s.size() > 1 && (s[0] == '-' || s[0] == '+')) ? 1 : 0;
+    if (i >= s.size()) {
+        return false;
+    }
+    return s.find_first_not_of("0123456789", i) == std::string::npos;
 }
 std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent action) {
     if (has) {
@@ -81,17 +93,24 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
     bool found_header{};
     bool found_melody{};
     bool found_bass{};
+    bool found_flags{};
+    bool readFlags{};
     int init_counter{};
     int sec_counter{};
     std::string strmel{};
     std::vector<int> melody_;
     std::vector<int> bass_;
+    std::string tmplit;
+    char svlit{};
     for (const char lit : file) {
         if (found_bass) {
             // finish
             std::cout << "loaded melody!" << std::endl;
             break;
         }
+        /*
+            Bass handling
+        */
         if (found_melody) {
             // parse bass
             if (lit == '\n') {
@@ -122,8 +141,57 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
             init_counter++;
             continue;
         }
+        /*
+            flag handling
+        */
+        if (readFlags) {
+            if (lit == ' ' || lit == '\n') {
+                if (svlit == 's' || svlit == 'l') {
+                    if (tmplit.empty()) {
+                        std::cout << "why is your " << svlit << " flag empty? usage: "
+                                << svlit << "170 or " << svlit << "1" << std::endl;
+                    } else if (!isNumeric(tmplit)) {
+                        std::cout << "you serious? u need to do <f><num>, only "
+                                << svlit << "2 or " << svlit << "23 etc. got: "
+                                << svlit << tmplit << std::endl;
+                    } else if (svlit == 's') {
+                        sleep = std::stoi(tmplit);
+                    } else {
+                        loop_max = std::stoi(tmplit);
+                    }
+                }
+                tmplit.clear();
+                svlit = {};
+                if (lit == '\n') {
+                    readFlags = false;
+                }
+                init_counter++;
+                continue;
+            }
+            if (svlit == 0) {
+                if (lit == 's' || lit == 'l') {
+                    svlit = lit;
+                }
+                init_counter++;
+                continue;
+            }
+            tmplit += lit;
+            init_counter++;
+            continue;
+        }
+        /*
+            after Header Handling
+        */
         if (found_header) {
-            // parse melody
+            if (lit == 's' || lit == 'l') { // flag: sleep
+                svlit = lit;
+                readFlags = true;
+                init_counter++;
+                continue;
+            }
+            /*
+                Melody Handling
+            */
             if (lit == '\n') {
                 if (hasNumber(strmel)) {
                     melody_.push_back(std::stoi(strmel));
@@ -152,6 +220,7 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
             init_counter++;
             continue;
         }
+        /* Search Header Quotes *[*]* */
         if (lit == '[') {
             sec_counter = init_counter + 1;
         }
@@ -159,7 +228,6 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
             if (sec_counter == 0) {
                 throw "error in for(const char lit : file) {\n  ... undefined error\n}";
             } else {
-                // Lese Kopf, müsste init_counter (letzer index) und sec_counter (erster index sein)
                 int offset = init_counter - sec_counter;
                 std::string header = file.substr(sec_counter, offset);
                 if (header == targetheader) {
@@ -169,10 +237,11 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
         }
         init_counter++;
     }
-    if (found_melody && !found_bass && hasNumber(strmel)) {
+    if (found_melody && !found_bass && hasNumber(strmel)) { // /flag or opt
         bass_.push_back(std::stoi(strmel));
     }
     if (melody_.empty() || bass_.empty()) {
+        std::cout << "collected: f-s" << sleep << ".l" << loop_max << std::endl;
        throw "error collecting tones in function getMelody!"; 
     }
     switch (action) {
@@ -193,8 +262,6 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
 }
 int main(int argc, char** argv) {
     // main globals
-    int loop_max = 3;
-    int sleep = 120;
     bool file_used{};
     std::string filename{};
     std::string titlename{};
