@@ -10,7 +10,7 @@
 #include <stdexcept>
 #pragma comment(lib, "winmm.lib")
 int loop_max = 3;
-int sleep = 120;
+int sleep = 167;
 void sendMIDI(HMIDIOUT hMidi, BYTE status, BYTE data1, BYTE data2) {
     DWORD msg = status | (data1 << 8) | (data2 << 16);
     midiOutShortMsg(hMidi, msg);
@@ -237,6 +237,9 @@ std::vector<int> getMelody(std::string file, std::string targetheader, EnumIdent
         }
         init_counter++;
     }
+    if (!found_header) {
+        throw "the provided header was not found in the sound library. did you spelled it right?\nFormat is:\n[HEADER]\n...\n[HEADER2]\n...";
+    }
     if (found_melody && !found_bass && hasNumber(strmel)) { // /flag or opt
         bass_.push_back(std::stoi(strmel));
     }
@@ -280,6 +283,7 @@ int main(int argc, char** argv) {
             std::cout << "  pass argumentes -f <file> <title> to use file-written melodys: " << std::endl;
             std::cout << "     mymelody.txt " << std::endl;
             std::cout << "     [MY_TITLE]" << std::endl;
+            std::cout << "     l10 s170 ; optional flags that behave like the -s, -l flags" << std::endl;
             std::cout << "     74 29 46 284 83 89 46 -34 -23 3" << std::endl;
             std::cout << "     29 47 29 47 29 43 20 26" << std::endl;
             std::cout << "     [OTHER]" << std::endl;
